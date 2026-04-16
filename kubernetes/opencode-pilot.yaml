@@ -1,0 +1,225 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: opencode-pilot
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: opencode-pilot-secrets
+  namespace: opencode-pilot
+type: Opaque
+stringData:
+  OPENCODE_SERVER_USERNAME: opencode
+  OPENCODE_SERVER_PASSWORD: change-me
+  AZURE_FOUNDRY_BASE_URL: https://your-azure-foundry-endpoint.example.com/v1
+  AZURE_FOUNDRY_API_KEY: change-me
+  GITLAB_USERNAME: git
+  GITLAB_TOKEN: change-me
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opencode-pilot-config
+  namespace: opencode-pilot
+data:
+  opencode.jsonc: |
+    {
+      "$schema": "https://opencode.ai/config.json",
+      "share": "disabled",
+      "enabled_providers": ["azure-foundry"],
+      "model": "azure-foundry/gpt-4.1",
+      "small_model": "azure-foundry/gpt-4.1-mini",
+      "provider": {
+        "azure-foundry": {
+          "npm": "@ai-sdk/openai-compatible",
+          "name": "Azure Foundry",
+          "options": {
+            "baseURL": "{env:AZURE_FOUNDRY_BASE_URL}",
+            "apiKey": "{env:AZURE_FOUNDRY_API_KEY}"
+          },
+          "models": {
+            "gpt-4.1": {
+              "name": "GPT-4.1"
+            },
+            "gpt-4.1-mini": {
+              "name": "GPT-4.1 Mini"
+            }
+          }
+        }
+      },
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "webfetch": "allow",
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "git *": "allow",
+          "pwd": "allow",
+          "ls *": "allow",
+          "find *": "allow",
+          "rm *": "deny",
+          "shutdown *": "deny",
+          "reboot *": "deny"
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: opencode-pilot-workspace
+  namespace: opencode-pilot
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencode-pilot
+  namespace: opencode-pilot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opencode-pilot
+  template:
+    metadata:
+      labels:
+        app: opencode-pilot
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: init-repo
+          image: ghcr.io/your-org/opencode-web:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/local/bin/init-repo.sh
+          env:
+            - name: HOME
+              value: /home/opencode
+            - name: WORKSPACE_ROOT
+              value: /workspace
+            - name: GITLAB_REPO_URL
+              value: https://gitlab.example.com/group/project.git
+            - name: GITLAB_REPO_DIR
+              value: project
+            - name: GITLAB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: opencode-pilot-secrets
+                  key: GITLAB_USERNAME
+            - name: GITLAB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: opencode-pilot-secrets
+                  key: GITLAB_TOKEN
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: home
+              mountPath: /home/opencode
+      containers:
+        - name: opencode
+          image: ghcr.io/your-org/opencode-web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4096
+          env:
+            - name: HOME
+              value: /home/opencode
+            - name: WORKSPACE_ROOT
+              value: /workspace
+            - name: OPENCODE_PORT
+              value: "4096"
+            - name: OPENCODE_CONFIG
+              value: /etc/opencode/opencode.jsonc
+            - name: GITLAB_REPO_DIR
+              value: project
+            - name: OPENCODE_SERVER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: opencode-pilot-secrets
+                  key: OPENCODE_SERVER_USERNAME
+            - name: OPENCODE_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opencode-pilot-secrets
+                  key: OPENCODE_SERVER_PASSWORD
+            - name: AZURE_FOUNDRY_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: opencode-pilot-secrets
+                  key: AZURE_FOUNDRY_BASE_URL
+            - name: AZURE_FOUNDRY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opencode-pilot-secrets
+                  key: AZURE_FOUNDRY_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /global/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /global/health
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: home
+              mountPath: /home/opencode
+            - name: opencode-config
+              mountPath: /etc/opencode/opencode.jsonc
+              subPath: opencode.jsonc
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: opencode-pilot-workspace
+        - name: home
+          emptyDir: {}
+        - name: opencode-config
+          configMap:
+            name: opencode-pilot-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opencode-pilot
+  namespace: opencode-pilot
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  selector:
+    app: opencode-pilot
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

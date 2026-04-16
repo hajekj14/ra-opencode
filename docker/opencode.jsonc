@@ -1,0 +1,41 @@
+{
+  "share": "disabled",
+  "enabled_providers": ["azure-foundry"],
+  "model": "azure-foundry/gpt-4.1",
+  "small_model": "azure-foundry/gpt-4.1-mini",
+  "provider": {
+    "azure-foundry": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Azure Foundry",
+      "options": {
+        "baseURL": "{env:AZURE_FOUNDRY_BASE_URL}",
+        "apiKey": "{env:AZURE_FOUNDRY_API_KEY}"
+      },
+      "models": {
+        "gpt-4.1": {
+          "name": "GPT-4.1"
+        },
+        "gpt-4.1-mini": {
+          "name": "GPT-4.1 Mini"
+        }
+      }
+    }
+  },
+  "permission": {
+    "read": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "webfetch": "allow",
+    "edit": "allow",
+    "bash": {
+      "*": "ask",
+      "git *": "allow",
+      "pwd": "allow",
+      "ls *": "allow",
+      "find *": "allow",
+      "rm *": "deny",
+      "shutdown *": "deny",
+      "reboot *": "deny"
+    }
+  }
+}
