@@ -1,22 +1,23 @@
 {
   "share": "disabled",
   "enabled_providers": ["azure-foundry"],
-  "model": "azure-foundry/gpt-4.1",
-  "small_model": "azure-foundry/gpt-4.1-mini",
+  "model": "azure-foundry/Kimi-K2.5",
+  "small_model": "azure-foundry/Kimi-K2.5",
   "provider": {
     "azure-foundry": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Azure Foundry",
+      "name": "Azure AI Foundry",
       "options": {
-        "baseURL": "{env:AZURE_FOUNDRY_BASE_URL}",
+        "baseURL": "https://jiri-mnrwd2rg-eastus2.services.ai.azure.com/openai/v1/",
         "apiKey": "{env:AZURE_FOUNDRY_API_KEY}"
       },
       "models": {
-        "gpt-4.1": {
-          "name": "GPT-4.1"
-        },
-        "gpt-4.1-mini": {
-          "name": "GPT-4.1 Mini"
+        "Kimi-K2.5": {
+          "name": "Kimi-K2.5",
+          "limit": {
+            "context": 262144,
+            "output": 262144
+          }
         }
       }
     }

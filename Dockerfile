@@ -21,7 +21,10 @@ WORKDIR /workspace
 
 COPY docker/init-repo.sh /usr/local/bin/init-repo.sh
 COPY docker/start-opencode.sh /usr/local/bin/start-opencode.sh
+COPY docker/opencode.jsonc /etc/opencode/opencode.jsonc
 
 RUN chmod +x /usr/local/bin/init-repo.sh /usr/local/bin/start-opencode.sh
+
+ENV OPENCODE_CONFIG=/etc/opencode/opencode.jsonc
 
 ENTRYPOINT ["/usr/local/bin/start-opencode.sh"]
