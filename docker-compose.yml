@@ -1,5 +1,8 @@
 services:
   opencode-pilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ${OPENCODE_IMAGE:-ghcr.io/your-org/opencode-web:latest}
     container_name: opencode-pilot
     restart: unless-stopped

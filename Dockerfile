@@ -19,8 +19,8 @@ RUN set -eux; \
 
 WORKDIR /workspace
 
-COPY image/init-repo.sh /usr/local/bin/init-repo.sh
-COPY image/start-opencode.sh /usr/local/bin/start-opencode.sh
+COPY docker/init-repo.sh /usr/local/bin/init-repo.sh
+COPY docker/start-opencode.sh /usr/local/bin/start-opencode.sh
 
 RUN chmod +x /usr/local/bin/init-repo.sh /usr/local/bin/start-opencode.sh
 

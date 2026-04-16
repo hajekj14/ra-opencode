@@ -8,7 +8,7 @@ There is no Kustomize, Helm, or generator step.
 
 - One plain Kubernetes YAML file at `kubernetes/opencode-pilot.yaml`
 - One plain Docker Compose file at `docker-compose.yml`
-- One custom image definition at `image/Dockerfile`
+- One custom image definition at `Dockerfile`
 - One init script that clones or refreshes the allowed GitLab repository
 - One startup script that launches `opencode web` inside that repository
 
@@ -17,7 +17,7 @@ There is no Kustomize, Helm, or generator step.
 Build the custom image from the repository root.
 
 ```powershell
-docker build -t ghcr.io/your-org/opencode-web:latest -f image/Dockerfile .
+docker build -t ghcr.io/your-org/opencode-web:latest .
 docker push ghcr.io/your-org/opencode-web:latest
 ```
 
@@ -30,7 +30,7 @@ Edit `docker-compose.env.example` and replace the placeholder values.
 Then start the local deployment.
 
 ```powershell
-docker compose --env-file docker-compose.env.example up -d
+docker compose --env-file docker-compose.env.example up -d --build
 ```
 
 Stop it with:
