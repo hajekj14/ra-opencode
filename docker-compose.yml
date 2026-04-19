@@ -1,22 +1,15 @@
 x-opencode-instance: &opencode-instance
-  image: ${OPENCODE_IMAGE:-ghcr.io/anomalyco/opencode:latest}
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+    args:
+      OPENCODE_VERSION: ${OPENCODE_VERSION:-v1.14.18}
+  image: ${OPENCODE_IMAGE:-opencode-glibc:latest}
   restart: unless-stopped
   init: true
   working_dir: /workspace
-  entrypoint:
-    - /bin/sh
-    - -lc
-  command:
-    - |
-      set -eu
-      if ! command -v git >/dev/null 2>&1 || ! command -v bash >/dev/null 2>&1 || ! command -v ssh >/dev/null 2>&1 || [ ! -e /lib/ld-linux-x86-64.so.2 ]; then
-        apk add --no-cache bash ca-certificates gcompat git openssh-client
-      fi
-      mkdir -p "$$HOME" /workspace
-      exec opencode web --hostname 0.0.0.0 --port "$$OPENCODE_PORT"
   environment: &opencode-instance-env
     HOME: /home/opencode
-    OPENCODE_PORT: "4096"
     SHELL: /bin/bash
   healthcheck:
     test: ["CMD-SHELL", "auth=\"$$(printf '%s:%s' \"$$OPENCODE_SERVER_USERNAME\" \"$$OPENCODE_SERVER_PASSWORD\" | base64 | tr -d '\\n')\"; wget -q -O /dev/null --header=\"Authorization: Basic $$auth\" http://127.0.0.1:4096/global/health || exit 1"]
