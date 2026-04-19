@@ -1,7 +1,7 @@
 x-opencode-instance: &opencode-instance
   build:
     context: .
-    dockerfile: docker/Dockerfile
+    dockerfile: Dockerfile
     args:
       OPENCODE_VERSION: ${OPENCODE_VERSION:-v1.14.18}
   image: ${OPENCODE_IMAGE:-opencode-glibc:latest}
