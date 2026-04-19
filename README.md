@@ -1,79 +1,69 @@
 # OpenCode Deployment
 
-This repository contains simple deployment options for one isolated OpenCode Web instance.
+This repository contains plain OpenCode deployments based on the official `ghcr.io/anomalyco/opencode:latest` image.
 
-There is no Kustomize, Helm, or generator step.
+There is no custom image, no baked provider config, and no Jira, Microsoft, or GitLab-specific integration. Each user gets an isolated OpenCode service with its own auth, home volume, and workspace volume.
 
 ## What you get
 
+- One multi-tenant Docker Compose file at `docker-compose.yml`
+- One default tenant named `hajekj14`
 - One plain Kubernetes YAML file at `kubernetes/opencode-pilot.yaml`
-- One plain Docker Compose file at `docker-compose.yml`
-- One custom image definition at `Dockerfile`
-- One baked-in default OpenCode config at `docker/opencode.jsonc`
-- One init script that clones or refreshes the allowed GitLab repository
-- One startup script that launches `opencode web` inside that repository
-
-## Build the image
-
-Build the custom image from the repository root.
-
-```powershell
-docker build -t ghcr.io/your-org/opencode-web:latest .
-docker push ghcr.io/your-org/opencode-web:latest
-```
-
-Update the image reference in `kubernetes/opencode-pilot.yaml` or `docker-compose.env.example` after you publish the image.
-
-The image now includes a default OpenCode config with this built-in provider setup:
-
-- Provider: `azure-foundry`
-- Provider package: `@ai-sdk/openai-compatible`
-- Provider name: `Azure AI Foundry`
-- Base URL: `https://jiri-mnrwd2rg-eastus2.services.ai.azure.com/openai/v1/`
-- Default model: `Kimi-K2.5`
-- Context limit: `262144`
-- Output limit: `262144`
-
-That baked config is used by default. If you mount your own file to `/etc/opencode/opencode.jsonc`, the mounted file overrides it.
+- Persistent home and workspace storage
+- HTTP basic auth on every instance
+- Runtime install of `git`, `bash`, `openssh-client`, `gcompat`, and CA certificates so the OpenCode terminal can clone repositories directly and load its PTY native library on Alpine
 
 ## Docker Compose
 
-Edit `docker-compose.env.example` and replace the placeholder values.
+Edit `docker-compose.env.example` and replace the placeholder password values.
 
-Then start the local deployment.
+The default service is `hajekj14`. It publishes OpenCode on `127.0.0.1:4096` and applies hard Docker limits for CPU and RAM with these per-instance variables:
+
+- `OPENCODE_MAX_CPUS_HAJEKJ14`
+- `OPENCODE_MAX_MEMORY_HAJEKJ14`
+- `OPENCODE_MAX_PIDS_HAJEKJ14`
+
+Start the default tenant:
 
 ```powershell
-docker compose --env-file docker-compose.env.example up -d --build
+docker compose --env-file docker-compose.env.example up -d
 ```
 
-Stop it with:
+Stop it:
 
 ```powershell
 docker compose --env-file docker-compose.env.example down
 ```
 
-By default, the web UI is published only on `127.0.0.1:4096`.
+### Add another tenant
 
-If you want to override the baked-in OpenCode config, add a bind mount to `docker-compose.yml` like this:
+1. Copy the `hajekj14` service block in `docker-compose.yml`.
+2. Rename the service, container, hostname, and volume names for the new user.
+3. Add a new set of variables in `docker-compose.env.example` with a matching suffix such as `ANOTHER_USER`.
+4. Set a unique host port and the per-instance CPU and RAM limits for that user.
 
-```yaml
-- ./my-opencode.jsonc:/etc/opencode/opencode.jsonc:ro
-```
+Each tenant keeps its own OpenCode auth data under `/home/opencode` and its own cloned repositories under `/workspace`.
 
-## Edit the YAML
+### Authentication and Providers
 
-Before applying the manifest, replace these placeholder values in `kubernetes/opencode-pilot.yaml`:
+Server access stays protected with OpenCode HTTP basic auth through:
 
-- `change-me` secrets
-- `https://gitlab.example.com/group/project.git`
-- `project`
-- `ghcr.io/your-org/opencode-web:latest`
+- `OPENCODE_SERVER_USERNAME_*`
+- `OPENCODE_SERVER_PASSWORD_*`
 
-For one user per repository, duplicate the YAML file and change the namespace, resource names, repo URL, repo directory, and credentials.
+Model/provider login is intentionally left to standard OpenCode behavior. Users should authenticate inside OpenCode with `/connect` or any supported environment variables. Those credentials persist in the tenant home volume.
 
-## Apply
+## Kubernetes
 
-After editing the placeholders, deploy with one command.
+`kubernetes/opencode-pilot.yaml` is a single-instance example using the same official image and the same runtime package install approach.
+
+Before applying it, replace these placeholder values:
+
+- `OPENCODE_SERVER_USERNAME`
+- `OPENCODE_SERVER_PASSWORD`
+- Resource requests and limits if the defaults do not match your cluster policy
+
+Apply it with:
 
 ```powershell
 kubectl apply -f kubernetes/opencode-pilot.yaml
@@ -81,9 +71,10 @@ kubectl apply -f kubernetes/opencode-pilot.yaml
 
 ## Notes
 
-- This uses one OpenCode instance per user because upstream OpenCode only supports one basic-auth username and password per server instance.
-- GitLab access is limited by the token you place in the secret. Use a read-only project token or deploy token for the single approved repository.
-- JIRA is intentionally not included in this first cut.
-- The Service is an internal AKS LoadBalancer.
-- The Docker Compose deployment follows the same one-user one-repo model, just without Kubernetes.
-- Kubernetes now also uses the baked image config by default. If you need to override it there, mount a ConfigMap or file volume to `/etc/opencode/opencode.jsonc`.
+- Compose is multi-tenant by duplication: one Docker service per user.
+- The default tenant is `hajekj14`.
+- Each tenant has hard Docker CPU and RAM caps through `cpus` and `mem_limit`.
+- The template pins `SHELL=/bin/bash` so OpenCode uses bash for PTY sessions instead of BusyBox ash from the base image.
+- The OpenCode terminal works because the container installs `git`, `bash`, `ssh`, and Alpine `gcompat` before `opencode web` starts.
+- `gcompat` is required on the official Alpine-based image because the PTY/native module expects the glibc loader path `/lib/ld-linux-x86-64.so.2`.
+- No repositories are pre-cloned. Users clone what they need from inside the instance.
