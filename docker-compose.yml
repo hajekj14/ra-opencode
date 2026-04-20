@@ -10,9 +10,6 @@ x-opencode-instance: &opencode-instance
   working_dir: /workspace
   environment: &opencode-instance-env
     HOME: /home/opencode
-    OPENCODE_CONFIG_DIR: /etc/opencode
-    OPENCODE_PREVIEW_NETWORK: ${OPENCODE_PREVIEW_NETWORK:-bridge}
-    OPENCODE_PREVIEW_PORT: ${OPENCODE_PREVIEW_PORT:-5553}
     SHELL: /bin/bash
   healthcheck:
     test: ["CMD-SHELL", "auth=\"$$(printf '%s:%s' \"$$OPENCODE_SERVER_USERNAME\" \"$$OPENCODE_SERVER_PASSWORD\" | base64 | tr -d '\\n')\"; wget -q -O /dev/null --header=\"Authorization: Basic $$auth\" http://127.0.0.1:4096/global/health || exit 1"]

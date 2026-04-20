@@ -2,14 +2,14 @@
 
 This repository contains a Docker Compose deployment built from a custom Debian/glibc OpenCode image and a separate plain Kubernetes example.
 
-The Compose image bakes in terminal dependencies, the Docker CLI, and a global OpenCode custom tool for building and running preview containers through the host Docker daemon. Each user still gets an isolated OpenCode service with its own auth, home volume, and workspace volume.
+The Compose image bakes in terminal dependencies and the Docker CLI. OpenCode reaches the host Docker daemon through the mounted socket and can use the built-in `bash` tool to run Docker workflows. Each user still gets an isolated OpenCode service with its own auth, home volume, and workspace volume.
 
 ## What you get
 
 - One multi-tenant Docker Compose file at `docker-compose.yml`
 - One default tenant named `hajekj14`
 - One plain Kubernetes YAML file at `kubernetes/opencode-pilot.yaml`
-- One global `docker_preview` OpenCode tool in the Compose image
+- Host Docker access from OpenCode through the built-in `bash` tool
 - Persistent home and workspace storage
 - HTTP basic auth on every instance
 - `git`, `bash`, `openssh-client`, CA certificates, and the Docker CLI baked into the Compose image
@@ -24,11 +24,9 @@ The default service is `hajekj14`. It publishes OpenCode on `127.0.0.1:4096`, mo
 - `OPENCODE_MAX_MEMORY_HAJEKJ14`
 - `OPENCODE_MAX_PIDS_HAJEKJ14`
 
-For the global preview tool you can also set:
+For host Docker access you can also set:
 
 - `OPENCODE_DOCKER_SOCKET`
-- `OPENCODE_PREVIEW_NETWORK`
-- `OPENCODE_PREVIEW_PORT`
 
 Start the default tenant:
 
@@ -51,28 +49,23 @@ docker compose --env-file docker-compose.env.example down
 
 Each tenant keeps its own OpenCode auth data under `/home/opencode` and its own cloned repositories under `/workspace`.
 
-### Host Docker Previews
+### Host Docker Access
 
-The Compose image includes a global OpenCode custom tool named `docker_preview`. It talks to the host Docker daemon through the mounted socket and is intended for preview containers that should match names like `t-demo.hajek.click`.
+OpenCode does not ship a built-in Docker-specific tool. The built-in way to control Docker is the `bash` tool.
 
-The tool supports these actions:
+This Compose image includes the Docker CLI and mounts the host Docker socket into the container, so prompts can run commands like:
 
-- `action: "up"` builds an image from a Dockerfile and replaces the container if it already exists
-- `action: "status"` shows the container state, network, and resolved IP
-- `action: "down"` removes the container
+```bash
+docker build -t preview/t-demo:latest -f Dockerfile .
+docker rm -f t-demo || true
+docker run -d --restart unless-stopped --name t-demo --hostname t-demo --network bridge --expose 5553 preview/t-demo:latest
+```
 
-The required naming convention is `t-[a-z0-9]+`, because the tool uses the same value for the Docker container name and hostname. By default it expects the preview app to listen on container port `5553`.
+The managed OpenCode config in `/etc/opencode/opencode.jsonc` explicitly allows `bash`, so Docker commands are available without a custom tool wrapper.
 
-Typical `up` arguments are:
+If you want preview containers to fit your existing Nginx naming rule, keep using names like `t-demo` for both the container name and hostname, and make sure the app listens on container port `5553`.
 
-- `name`: preview container and hostname, for example `t-demo`
-- `dockerfile`: Dockerfile path relative to the current OpenCode working directory, default `Dockerfile`
-- `contextPath`: Docker build context, default current working directory
-- `network`: Docker network, default from `OPENCODE_PREVIEW_NETWORK` or `bridge`
-- `publishPort`: optional host port if you also want direct host publishing
-- `buildArgs` and `environment`: optional key-value maps forwarded to `docker build` and `docker run`
-
-Your Nginx rule only works if the hostname `t-...` resolves to the container IP that is listening on port `5553`. Docker does not provide host-side container-name DNS on the default bridge by itself. If your resolver at `172.17.0.1` is backed by a real Docker-aware DNS service, the tool naming will fit it. If not, use `publishPort` or run Nginx in Docker on a shared user-defined network instead.
+Your Nginx rule only works if the hostname `t-...` resolves to the container IP that is listening on port `5553`. Docker does not provide host-side container-name DNS on the default bridge by itself. If your resolver at `172.17.0.1` is backed by a real Docker-aware DNS service, the container naming will fit it. If not, publish the port explicitly with `docker run -p 5553:5553 ...` or run Nginx in Docker on a shared user-defined network instead.
 
 ### Authentication and Providers
 
@@ -106,5 +99,5 @@ kubectl apply -f kubernetes/opencode-pilot.yaml
 - Each tenant has hard Docker CPU and RAM caps through `cpus` and `mem_limit`.
 - The Compose image pins `SHELL=/bin/bash` so OpenCode uses bash for PTY sessions.
 - The Compose image uses Debian/glibc because PTY support is broken in the upstream Alpine image.
-- The Compose image includes the `docker_preview` tool, but it still needs a mounted Docker socket and a host daemon that you trust the container to control.
+- The Compose image does not include a custom Docker tool. Docker access is provided through the built-in `bash` tool plus the mounted Docker socket.
 - No repositories are pre-cloned. Users clone what they need from inside the instance.
