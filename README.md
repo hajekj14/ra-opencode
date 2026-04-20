@@ -2,7 +2,7 @@
 
 This repository contains a Docker Compose deployment built from a custom Debian/glibc OpenCode image and a separate plain Kubernetes example.
 
-The Compose image bakes in terminal dependencies and the Docker CLI. OpenCode reaches the host Docker daemon through the mounted socket and can use the built-in `bash` tool to run Docker workflows. Each user still gets an isolated OpenCode service with its own auth, home volume, and workspace volume.
+The Compose image bakes in terminal dependencies, the Docker CLI, and the Docker Compose v2 plugin. OpenCode reaches the host Docker daemon through the mounted socket and can use the built-in `bash` tool to run Docker workflows. Each user still gets an isolated OpenCode service with its own auth, home volume, and workspace volume.
 
 ## What you get
 
@@ -12,7 +12,7 @@ The Compose image bakes in terminal dependencies and the Docker CLI. OpenCode re
 - Host Docker access from OpenCode through the built-in `bash` tool
 - Persistent home and workspace storage
 - HTTP basic auth on every instance
-- `git`, `bash`, `openssh-client`, CA certificates, and the Docker CLI baked into the Compose image
+- `git`, `bash`, `openssh-client`, CA certificates, the Docker CLI, and `docker compose` baked into the Compose image
 
 ## Docker Compose
 
@@ -53,10 +53,11 @@ Each tenant keeps its own OpenCode auth data under `/home/opencode` and its own 
 
 OpenCode does not ship a built-in Docker-specific tool. The built-in way to control Docker is the `bash` tool.
 
-This Compose image includes the Docker CLI and mounts the host Docker socket into the container, so prompts can run commands like:
+This Compose image includes the Docker CLI, the Docker Compose v2 plugin, and the mounted host Docker socket, so prompts can run commands like:
 
 ```bash
 docker build -t preview/t-demo:latest -f Dockerfile .
+docker compose up -d
 docker rm -f t-demo || true
 docker run -d --restart unless-stopped --name t-demo --hostname t-demo --network bridge --expose 5553 preview/t-demo:latest
 ```
@@ -92,6 +93,16 @@ Apply it with:
 kubectl apply -f kubernetes/opencode-pilot.yaml
 ```
 
+## Troubleshooting
+
+If the web UI keeps showing a session as working after the backend has already finished, first confirm the server log shows `session.idle` or a completed prompt loop. In that case the problem is likely in the OpenCode web client state, not in this Debian/glibc container build.
+
+The most useful checks are:
+
+- Rebuild onto the current pinned OpenCode release in this repo.
+- Hard refresh the browser tab or reopen the session.
+- Check `/home/opencode/.local/share/opencode/log/*.log` for repeated `/global/event` disconnects or `NotFoundError` responses on stale `/session/:id` requests.
+
 ## Notes
 
 - Compose is multi-tenant by duplication: one Docker service per user.
@@ -99,5 +110,5 @@ kubectl apply -f kubernetes/opencode-pilot.yaml
 - Each tenant has hard Docker CPU and RAM caps through `cpus` and `mem_limit`.
 - The Compose image pins `SHELL=/bin/bash` so OpenCode uses bash for PTY sessions.
 - The Compose image uses Debian/glibc because PTY support is broken in the upstream Alpine image.
-- The Compose image does not include a custom Docker tool. Docker access is provided through the built-in `bash` tool plus the mounted Docker socket.
+- The Compose image does not include a custom Docker tool. Docker access is provided through the built-in `bash` tool plus the mounted Docker socket and Compose plugin.
 - No repositories are pre-cloned. Users clone what they need from inside the instance.

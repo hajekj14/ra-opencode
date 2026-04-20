@@ -4,22 +4,37 @@
 # This image downloads the glibc build from GitHub releases instead.
 #
 # Build args:
-#   OPENCODE_VERSION — GitHub release tag (default: v1.14.18). Update to upgrade.
+#   OPENCODE_VERSION — GitHub release tag (default: v1.14.19). Update to upgrade.
 
 FROM debian:bookworm-slim
 
-ARG OPENCODE_VERSION=v1.14.18
+ARG OPENCODE_VERSION=v1.14.19
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        bash \
        ca-certificates \
        curl \
-             docker.io \
+       gpg \
        git \
        openssh-client \
        wget \
     && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    install -m 0755 -d /etc/apt/keyrings; \
+    curl -fsSL https://download.docker.com/linux/debian/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg; \
+    chmod a+r /etc/apt/keyrings/docker.gpg; \
+    . /etc/os-release; \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
+        > /etc/apt/sources.list.d/docker.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        docker-buildx-plugin \
+        docker-ce-cli \
+        docker-compose-plugin; \
+    rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
     TMPDIR=$(mktemp -d); \

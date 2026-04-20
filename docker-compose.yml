@@ -3,7 +3,7 @@ x-opencode-instance: &opencode-instance
     context: .
     dockerfile: Dockerfile
     args:
-      OPENCODE_VERSION: ${OPENCODE_VERSION:-v1.14.18}
+      OPENCODE_VERSION: ${OPENCODE_VERSION:-v1.14.19}
   image: ${OPENCODE_IMAGE:-opencode-glibc:latest}
   restart: unless-stopped
   init: true
