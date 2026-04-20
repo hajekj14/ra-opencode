@@ -15,6 +15,7 @@ RUN apt-get update \
        bash \
        ca-certificates \
        curl \
+             docker.io \
        git \
        openssh-client \
        wget \
@@ -31,6 +32,8 @@ RUN set -eux; \
     rm -rf "$TMPDIR"
 
 WORKDIR /workspace
+
+COPY docker/opencode-config/ /etc/opencode/
 
 ENTRYPOINT ["opencode"]
 CMD ["web", "--hostname", "0.0.0.0", "--port", "4096"]

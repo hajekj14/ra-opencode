@@ -1,6 +1,0 @@
-[      18ms] [ERROR] [global-sdk] event stream error {url: http://127.0.0.1:4096, fetch: webview, error: TypeError: network error} @ http://127.0.0.1:4096/assets/index-BCRuIaJF.js:2390
-[      25ms] [ERROR] Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'wasm-unsafe-eval''. Either the 'unsafe-inline' keyword, a hash ('sha256-QI23YWMJrD/tljM6/82tpL8EwqdBoptwZfycFHA9IiQ='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked. @ http://hajekj14:change-me@127.0.0.1:4096/:15
-[      41ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://hajekj14:change-me@127.0.0.1:4096/site.webmanifest:0
-[      42ms] [ERROR] Manifest fetch from http://hajekj14:change-me@127.0.0.1:4096/site.webmanifest failed, code 401 @ http://hajekj14:change-me@127.0.0.1:4096/:0
-[     342ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://hajekj14:change-me@127.0.0.1:4096/site.webmanifest:0
-[     342ms] [ERROR] Manifest fetch from http://hajekj14:change-me@127.0.0.1:4096/site.webmanifest failed, code 401 @ http://hajekj14:change-me@127.0.0.1:4096/:0
